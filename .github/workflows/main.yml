@@ -64,7 +64,3 @@ jobs:
               --env-file /tmp/envfile \
               -p 3004:3004 \
               asadchalakha/cicd-demo:latest
-            echo "➡ (Optional) Removing envfile"
-            rm -f /tmp/envfile
-
-            echo "🎉 Deployment complete!"
