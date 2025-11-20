@@ -1,67 +1,32 @@
-name: Secrets-demo
+- name: SSH to EC2 & deploy
+  uses: appleboy/ssh-action@master
+  with:
+    host: ${{ secrets.EC2_HOST }}
+    username: ${{ secrets.EC2_USERNAME }}
+    key: ${{ secrets.EC2_KEY }}
+    script: |
+      echo "➡ Removing old container"
+      docker rm -f cicd-demo || true
 
-on: workflow_dispatch
+      echo "➡ Removing old image"
+      docker rmi asadchalakha/cicd-demo:latest || true
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    environment: demo   # <- loads secrets from GitHub Environment "prod"
+      echo "➡ Pulling latest Docker image"
+      docker pull asadchalakha/cicd-demo:latest
 
-    steps:
-      - uses: actions/checkout@v3
+      echo "➡ Creating secrets.json"
+      echo '${{ toJson(secrets) }}' > secrets.json
 
-      # ------------------------------
-      # Build Docker Image
-      # ------------------------------
-      - name: Build Docker Image
-        run: docker build -t asadchalakha/cicd-demo .
+      echo "➡ Converting JSON → key=value env file"
+      jq -r 'to_entries | .[] | "\(.key)=\(.value)"' secrets.json > /tmp/envfile
 
-      # ------------------------------
-      # Login to Docker Hub
-      # ------------------------------
-      - name: Login to Docker Hub
-        run: echo "${{ secrets.DOCKER_HUB_PWD }}" | docker login -u "${{ secrets.DOCKER_HUB_USER }}" --password-stdin
+      echo "➡ Cleaning JSON file for security"
+      rm -f secrets.json
 
-      # ------------------------------
-      # Push Docker Image
-      # ------------------------------
-      - name: Push Docker Image
-        run: docker push asadchalakha/cicd-demo:latest
-
-      # ------------------------------
-      # Deploy to EC2 (Option 3 — full secret injection)
-      # ------------------------------
-      - name: SSH to EC2 & deploy
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_KEY }}
-
-          script: |
-            echo "➡ Removing old container"
-            docker rm -f prod-spider-ai-backend-api || true
-
-            echo "➡ Removing old image"
-            docker rmi asadchalakha/asadchalakha/cicd-demo:latest || true
-
-            echo "➡ Pulling latest Docker image"
-            docker pull asadchalakha/cicd-demo:latest
-
-            echo "➡ Creating secrets.json"
-            echo '${{ toJson(secrets) }}' > secrets.json
-
-            echo "➡ Converting JSON → key=value env file"
-            jq -r 'to_entries | .[] | "\(.key)=\(.value)"' secrets_clean.json > /tmp/envfile
-
-
-            echo "➡ Cleaning JSON file for security"
-            rm -f secrets.json
-
-            echo "➡ Running container with env-file"
-            docker run -d \
-              --name cicd-demo \
-              --restart always \
-              --env-file /tmp/envfile \
-              -p 3004:3004 \
-              asadchalakha/cicd-demo:latest
+      echo "➡ Running container with env-file"
+      docker run -d \
+        --name cicd-demo \
+        --restart always \
+        --env-file /tmp/envfile \
+        -p 3004:3004 \
+        asadchalakha/cicd-demo:latest
