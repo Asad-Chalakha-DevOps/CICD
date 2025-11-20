@@ -6,7 +6,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment: demo   # Loads secrets/vars from the "demo" environment
+    environment: demo   # loads secrets from GitHub Environment "demo"
 
     steps:
       - uses: actions/checkout@v3
@@ -30,15 +30,14 @@ jobs:
         run: docker push asadchalakha/cicd-demo:latest
 
       # ------------------------------
-      # Deploy to EC2 (Base64 .env method)
+      # Deploy to EC2 (Full secret injection)
       # ------------------------------
-      - name: SSH to EC2 & Deploy
+      - name: SSH to EC2 & deploy
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_KEY }}
-
           script: |
             echo "➡ Removing old container"
             docker rm -f cicd-demo || true
@@ -49,10 +48,23 @@ jobs:
             echo "➡ Pulling latest image"
             docker pull asadchalakha/cicd-demo:latest
 
-            echo "➡ Decoding ENV_FILE_BASE64 into /tmp/.env"
-            echo "${{ secrets.ENV_FILE_BASE64 }}" | base64 --decode > /tmp/envfile
+            echo "➡ Creating secrets.json"
+            echo '${{ toJson(secrets) }}' > secrets.json
 
-            echo "➡ Running container with --env-file"
+            echo "➡ Cleaning secrets (removing whitespace/newlines)"
+            jq -r '
+              to_entries
+              | .[]
+              | .value |= (
+                  tostring
+                  | gsub("\\n";"")
+                  | gsub(" "; "")
+                  | gsub("\t"; "")
+                )
+              | "\(.key)=\(.value)"
+            ' secrets.json > /tmp/envfile
+
+            echo "➡ Running container with envfile"
             docker run -d \
               --name cicd-demo \
               --restart always \
@@ -60,7 +72,4 @@ jobs:
               -p 3004:3004 \
               asadchalakha/cicd-demo:latest
 
-            echo "➡ Cleaning temp files"
-            rm -f /tmp/envfile
-
-            echo "🎉 Deployment completed successfully!"
+            echo "🎉 Deployment completed successfully"
