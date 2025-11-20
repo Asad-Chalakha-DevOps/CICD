@@ -1,11 +1,11 @@
-name: Prod Development Backend
+name: Secrets-demo
 
 on: workflow_dispatch
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment: prod   # <- loads secrets from GitHub Environment "prod"
+    environment: demo   # <- loads secrets from GitHub Environment "prod"
 
     steps:
       - uses: actions/checkout@v3
@@ -43,7 +43,7 @@ jobs:
             docker rm -f prod-spider-ai-backend-api || true
 
             echo "➡ Removing old image"
-            docker rmi asadchalakha/prod-spider-ai-backend-api:latest || true
+            docker rmi asadchalakha/asadchalakha/cicd-demo:latest || true
 
             echo "➡ Pulling latest Docker image"
             docker pull asadchalakha/cicd-demo:latest
