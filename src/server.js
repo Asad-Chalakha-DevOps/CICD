@@ -2,7 +2,7 @@ const express = require("express");
 const mysql = require("mysql2/promise");
 
 const app = express();
-const PORT = process.env.APP_PORT || 3000;
+const PORT = process.env.APP_PORT || 3004;
 
 async function start() {
   const pool = mysql.createPool({
