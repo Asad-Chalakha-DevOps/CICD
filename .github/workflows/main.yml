@@ -1,4 +1,4 @@
-name: Secrets-demo1
+name: Base64
 
 on:
   workflow_dispatch:
