@@ -52,7 +52,8 @@ jobs:
             echo '${{ toJson(secrets) }}' > secrets.json
 
             echo "➡ Converting JSON → key=value env file"
-            jq -r 'to_entries | .[] | "\(.key)=\(.value)"' secrets.json > /tmp/envfile
+            jq -r 'to_entries | .[] | "\(.key)=\(.value)"' secrets_clean.json > /tmp/envfile
+
 
             echo "➡ Cleaning JSON file for security"
             rm -f secrets.json
