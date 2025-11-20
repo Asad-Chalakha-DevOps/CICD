@@ -1,4 +1,4 @@
-name: Secrets-demo
+name: Secrets-demo1
 
 on:
   workflow_dispatch:
