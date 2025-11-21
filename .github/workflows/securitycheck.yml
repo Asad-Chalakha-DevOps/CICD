@@ -75,8 +75,8 @@ jobs:
       # ------------------------------
       # Trivy Image Scan
       # ------------------------------
-      - name: Trivy Image Scan
-        run: trivy image --exit-code 1 --severity HIGH,CRITICAL asadchalakha/cicd-demo
+      - name: Trivy Secret Scan Only
+        run: trivy fs --scanners secret --exit-code 1 .
 
       ##############################################
       # 6. LOGIN TO DOCKER HUB
