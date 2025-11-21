@@ -41,8 +41,21 @@ jobs:
       ##############################################
       # 4. BUILD DOCKER IMAGE
       ##############################################
+      # Free space
+      - name: Free Disk
+        run: |
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          docker system prune -af
+      
+      
+
       - name: Build Docker Image
         run: docker build -t asadchalakha/cicd-demo .
+        # Check image exists
+      - name: Debug Images
+        run: docker images
+
 
       ##############################################
       # 5. DOCKER IMAGE VULNERABILITY SCAN — TRIVY
