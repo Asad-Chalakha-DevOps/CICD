@@ -1,0 +1,106 @@
+name: Base64-DevSecOps
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: demo
+
+    steps:
+      - uses: actions/checkout@v3
+
+      ##############################################
+      # 1. SECRET SCANNING (GitLeaks)
+      ##############################################
+      - name: Secrets Scan (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          config-path: ""
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      ##############################################
+      # 2. SAST (STATIC CODE ANALYSIS — SEMGREP)
+      ##############################################
+      - name: SAST Scan (Semgrep)
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: "p/ci"
+
+      ##############################################
+      # 3. DEPENDENCY SCAN (NODE)
+      ##############################################
+      - name: Install Dependencies
+        run: npm install
+
+      - name: NPM Audit
+        run: npm audit --audit-level=high
+
+      ##############################################
+      # 4. BUILD DOCKER IMAGE
+      ##############################################
+      - name: Build Docker Image
+        run: docker build -t asadchalakha/cicd-demo .
+
+      ##############################################
+      # 5. DOCKER IMAGE VULNERABILITY SCAN — TRIVY
+      ##############################################
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget
+          wget https://github.com/aquasecurity/trivy/releases/latest/download/trivy_0.50.1_Linux-64bit.deb
+          sudo dpkg -i trivy_0.50.1_Linux-64bit.deb
+
+      - name: Trivy Image Scan
+        run: trivy image --exit-code 1 --severity HIGH,CRITICAL asadchalakha/cicd-demo
+
+      ##############################################
+      # 6. LOGIN TO DOCKER HUB
+      ##############################################
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_HUB_PWD }}" | docker login -u "${{ secrets.DOCKER_HUB_USER }}" --password-stdin
+
+      ##############################################
+      # 7. PUSH IMAGE
+      ##############################################
+      - name: Push Docker Image
+        run: docker push asadchalakha/cicd-demo:latest
+
+      ##############################################
+      # 8. DEPLOY TO EC2 USING BASE64 ENV
+      ##############################################
+      - name: SSH to EC2 & Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_KEY }}
+
+          script: |
+            echo "➡ Removing old container"
+            docker rm -f cicd-demo || true
+
+            echo "➡ Removing old image"
+            docker rmi asadchalakha/cicd-demo:latest || true
+
+            echo "➡ Pulling latest image"
+            docker pull asadchalakha/cicd-demo:latest
+
+            echo "➡ Decoding ENV_FILE_BASE64 into /tmp/.env"
+            echo "${{ secrets.ENV_FILE_BASE64 }}" | base64 --decode > /tmp/envfile
+
+            echo "➡ Starting Container"
+            docker run -d \
+              --name cicd-demo \
+              --restart always \
+              --env-file /tmp/envfile \
+              -p 3004:3004 \
+              asadchalakha/cicd-demo:latest
+
+            echo "➡ Cleaning TEMP"
+            rm -f /tmp/envfile
+
+            echo "🎉 Deployment Completed Successfully"
