@@ -24,7 +24,7 @@ jobs:
       # 4️⃣ Push Docker image
       - name: Push Docker image
         run: |
-          docker push ${{ secrets.DOCKER_HUB_USER }}/myapp:latest
+          docker push asadchalakha/myapp:latest
 
       # 5️⃣ Deploy to EC2 via SSH
       - name: Deploy on EC2 (Secrets Manager Runtime Injection)
@@ -35,7 +35,7 @@ jobs:
           key: ${{ secrets.EC2_KEY }}
           script: |
             echo "Pulling latest image"
-            docker pull ${{ secrets.DOCKER_HUB_USER }}/myapp:latest
+            docker pull asadchalakha/myapp:latest
 
             echo "Stopping old container"
             docker stop myapp || true
@@ -47,4 +47,4 @@ jobs:
               --restart always \
               -p 3000:3000 \
               $(./fetch-secrets.sh | sed 's/^/-e /') \
-              ${{ secrets.DOCKER_HUB_USER }}/myapp:latest
+              asadchalakha/myapp:latest
